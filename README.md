@@ -1,4 +1,6 @@
-# clean-transcript-to-report
+# Scribe
+
+> *clean-transcript-to-report*
 
 ### From raw transcript → a report you can actually use. Not "paste it into ChatGPT and pray."
 
@@ -7,7 +9,7 @@ timestamps, repeated speaker names, "um"s and "uh"s, speech-recognition errors, 
 sentences. The usual move: dump the whole blob into a chatbot and get back a generic summary — vague,
 embellished with invented details, and **impossible to trace back to anything the person actually said.**
 
-**This tool does it differently.** Two steps, one pipeline, one container:
+**Scribe does it differently.** Two steps, one pipeline, one container:
 
 > **1. Clean** — a disciplined *rule engine* scrubs the transcript in the background.
 > **2. Analyze** — turns the clean transcript into a structured HTML report where **every conclusion is backed by a quote.**
