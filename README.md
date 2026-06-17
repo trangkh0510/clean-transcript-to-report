@@ -72,24 +72,6 @@ Open the endpoint → a single-page, two-step wizard:
 1. **Clean** — upload `.vtt` (Teams) / `.docx` / `.txt` → toggle rules → clean → **review & hand-edit**.
 2. **Analyze** — pick `cs` / `ux` / `meeting` → enter **objectives** → get an **HTML report**.
 
-Already have a clean transcript? Call the API directly and skip step 1:
-
-```bash
-curl -s -X POST https://<ENDPOINT>/invocations \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"meeting","mode":"single","transcripts":[{"participant":"x","text":"..."}],"objectives":"RQ1 ..."}'
-```
-
-Run locally:
-
-```bash
-cd src
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # fill in LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
-python -m app.server            # http://localhost:8080
-```
-
 ---
 
 ## Limitations (straight talk)
