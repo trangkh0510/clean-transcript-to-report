@@ -1,77 +1,78 @@
 # clean-transcript-to-report
 
-🌐 **Tiếng Việt** · [English](README.en.md)
+### From raw transcript → a report you can actually use. Not "paste it into ChatGPT and pray."
 
-### Từ transcript thô → report dùng được ngay. Không phải "dán vào ChatGPT rồi cầu nguyện".
+You just wrapped a user interview, a meeting, or a support call. What you have is a recording full of
+timestamps, repeated speaker names, "um"s and "uh"s, speech-recognition errors, half-finished
+sentences. The usual move: dump the whole blob into a chatbot and get back a generic summary — vague,
+embellished with invented details, and **impossible to trace back to anything the person actually said.**
 
-Bạn vừa xong một buổi phỏng vấn người dùng, một cuộc họp, hay một ca hỗ trợ khách hàng. Trên tay là
-file ghi âm đầy timestamp, tên người nói lặp lại, từ đệm "ờ à", lỗi nhận dạng giọng nói, câu nói dở
-dang. Cách thông thường: dán nguyên khối vào một con chatbot, nhận về một bản tóm tắt chung chung —
-trôi tuột, bịa thêm chi tiết, và **không truy được câu nào người dùng thực sự đã nói**.
+**This tool does it differently.** Two steps, one pipeline, one container:
 
-**Tool này làm khác.** Hai bước, một pipeline, chạy trong một container:
-
-> **1. Clean** — một *rule engine* làm sạch transcript ở hậu trường, có kỷ luật.
-> **2. Analyze** — biến transcript sạch thành report HTML có cấu trúc, **mọi kết luận đều có trích dẫn gốc**.
+> **1. Clean** — a disciplined *rule engine* scrubs the transcript in the background.
+> **2. Analyze** — turns the clean transcript into a structured HTML report where **every conclusion is backed by a quote.**
 
 ---
 
-## Vì sao đáng dùng (3 điểm khác biệt)
+## Why it's worth it (3 differentiators)
 
-### 🧹 1. Một rule engine 9 tầng làm sạch — không phải "nhờ AI sửa giùm"
+### 🧹 1. A 9-stage rule engine cleans the transcript — not "hey AI, fix this for me"
 
-Bước Clean không quăng nguyên transcript cho LLM tự xử. Nó chạy qua một **pipeline 9 stage được
-thiết kế riêng cho transcript tiếng Việt** (có code-switching tiếng Anh và giọng miền Nam), theo
-nguyên tắc xương sống **Precision > Recall — thà bỏ sót một lỗi còn hơn sửa sai một từ đúng**:
+The Clean step doesn't just hand the raw transcript to an LLM and hope. It runs through a **9-stage
+pipeline purpose-built for Vietnamese transcripts** (with English code-switching and southern-accent
+speech), governed by one backbone principle — **Precision > Recall: better to miss an error than to
+"correct" a word that was already right:**
 
-| Stage | Engine làm gì |
+| Stage | What the engine does |
 |---|---|
-| **Token Locking** | Khoá cứng số điện thoại, OTP, mã giao dịch, số tiền, năm lịch — **tuyệt đối không bị sửa nhầm** |
-| **ASR & Brand** | Sửa lỗi nhận dạng nặng, chuẩn brand ("Tóp Tóp" → TikTok), code-switch ("vau chờ" → voucher) |
-| **Giọng miền Nam** | Nhận diện vùng giọng → bật ruleset riêng ("dzậy" → vậy), nhưng **giữ từ địa phương đúng** (tui, ổng, mắc) vì đó là dữ liệu demographic quý cho UX |
-| **Số & Tiền tệ** | Phân biệt "năm 2023" với "5 triệu", chuẩn "1 5 triệu" → "một triệu rưỡi", slang "một củ" = 1.000.000đ |
-| **Filler & Self-correction** | Bỏ "ờ, à, kiểu như là", gộp câu nói lại ("tôi tôi tôi" → "tôi"), giữ "ạ" lịch sự |
-| **Câu, Tên người, QA** | Thêm dấu câu khi chắc chắn, capitalize tên qua whitelist, **flag vùng nghi ngờ để người review** thay vì đoán bừa |
+| **Token Locking** | Hard-locks phone numbers, OTPs, transaction IDs, money amounts, calendar years — so they can **never be mangled** by a later rule |
+| **ASR & Brand** | Fixes heavy recognition errors, normalizes brands ("Tóp Tóp" → TikTok), repairs code-switching ("vau chờ" → voucher) |
+| **Southern accent** | Detects the accent region → enables a dedicated ruleset ("dzậy" → vậy), while **keeping valid dialect words** (tui, ổng, mắc) because those are valuable demographic signal for UX |
+| **Numbers & money** | Distinguishes "year 2023" from "5 million", normalizes "1 5 triệu" → "one and a half million", decodes slang ("một củ" = 1,000,000đ) |
+| **Filler & self-correction** | Strips "um, uh, like, you know", collapses stutters ("I I I" → "I"), keeps polite particles |
+| **Sentences, names, QA** | Adds punctuation only when confident, capitalizes names via a whitelist, and **flags uncertain spots for human review** instead of guessing |
 
-Bạn **bật/tắt từng rule** và thêm rule riêng. Cái gì engine không chắc, nó **gắn cờ chứ không bịa** —
-và bạn được xem lại, sửa tay trước khi sang bước phân tích.
+You **toggle each rule on/off** and add your own. Whatever the engine isn't sure about, it **flags
+rather than fabricates** — and you review and hand-edit before anything reaches analysis.
 
-### 🧠 2. Logic transcript → report: có cấu trúc, có bằng chứng, không trôi
+### 🧠 2. Transcript → report logic: structured, evidence-backed, drift-free
 
-Bước Analyze **không** trả về một đoạn văn tóm tắt. Nó chạy một pipeline có kiểm soát:
+The Analyze step does **not** return a paragraph of prose. It runs a controlled pipeline:
 
 ```
-gate (chặn cửa) → analyze (LLM trả JSON) → validate (schema) → render (HTML)
+gate (gatekeeper) → analyze (LLM returns JSON) → validate (schema) → render (HTML)
 ```
 
-- **Gate chặn trước khi tốn tiền:** bắt buộc có **objectives** (mục tiêu/câu hỏi nghiên cứu), đúng 1
-  file, đủ độ dài tối thiểu — kiểm tra **trước mọi lần gọi LLM** để không đốt quota cho rác.
-- **Mọi finding phải có bằng chứng:** mỗi insight / pain point kèm **trích dẫn gốc verbatim ≤15 từ**
-  từ chính transcript. Không có chuyện "AI nói vậy" — bạn truy ngược được tới câu người dùng đã nói.
-- **Schema ép kỷ luật:** LLM phải trả JSON đúng schema (Pydantic validate). Sai schema → tự thử lại.
-  Report HTML do **Python dựng deterministic** từ JSON sạch — không để model tự "vẽ" layout lung tung.
+- **The gate blocks before you spend a cent:** it requires **objectives** (your goals / research
+  questions), exactly 1 file, and a minimum length — checked **before any LLM call** so you never burn
+  quota on garbage.
+- **Every finding carries evidence:** each insight / pain point ships with a **verbatim ≤15-word quote**
+  pulled straight from the transcript. No "the AI said so" — you can trace it back to the exact sentence.
+- **Schema enforces discipline:** the LLM must return JSON matching a strict schema (validated with
+  Pydantic); a mismatch triggers a retry. The HTML report is **rendered deterministically in Python**
+  from clean JSON — the model never gets to "paint" the layout however it feels.
 
-### 🎯 3. May đo cho từng use case — không phải một template cho tất cả
+### 🎯 3. Tailored per use case — not one template for everything
 
-Không phải report nào cũng giống nhau. Mỗi loại có **brain prompt riêng + schema riêng + cách render
-riêng**, hỏi đúng câu hỏi mà vai trò đó cần:
+Not every report is the same. Each type has its own **brain prompt + schema + rendering**, asking the
+exact questions that role needs answered:
 
-| Loại | Dành cho | Report trả về |
+| Type | For | What you get back |
 |---|---|---|
-| **`ux`** | UX researcher | Findings + **pain point có severity (high/med/low)** gắn theo flow, quotes, verdict pass/fail, scorecard, đề xuất |
-| **`cs`** | CS / vận hành | Tóm tắt + **đường sentiment khách hàng theo từng phase**, danh sách issue theo mức độ, action item, verdict |
-| **`meeting`** | PM / lead / thư ký | **Quyết định (ai chốt)** + action item (việc · người · deadline) + mục off-topic + verdict |
+| **`ux`** | UX researcher | Findings + **severity-tagged pain points (high/med/low)** mapped to flows, quotes, pass/fail verdict, scorecard, suggestions |
+| **`cs`** | CS / operations | Summary + **customer sentiment trajectory per phase**, issues ranked by severity, action items, verdict |
+| **`meeting`** | PM / lead / note-taker | **Decisions (who made them)** + action items (task · owner · deadline) + off-topic list + verdict |
 
 ---
 
-## Dùng trong 3 phút
+## Up and running in 3 minutes
 
-Mở endpoint → wizard một trang, hai bước:
+Open the endpoint → a single-page, two-step wizard:
 
-1. **Clean** — upload `.vtt` (Teams) / `.docx` / `.txt` → bật/tắt rule → làm sạch → **xem lại & sửa tay**.
-2. **Analyze** — chọn `cs` / `ux` / `meeting` → nhập **objectives** → nhận **report HTML**.
+1. **Clean** — upload `.vtt` (Teams) / `.docx` / `.txt` → toggle rules → clean → **review & hand-edit**.
+2. **Analyze** — pick `cs` / `ux` / `meeting` → enter **objectives** → get an **HTML report**.
 
-Đã có transcript sạch sẵn? Gọi thẳng API, bỏ qua bước 1:
+Already have a clean transcript? Call the API directly and skip step 1:
 
 ```bash
 curl -s -X POST https://<ENDPOINT>/invocations \
@@ -79,32 +80,32 @@ curl -s -X POST https://<ENDPOINT>/invocations \
   -d '{"type":"meeting","mode":"single","transcripts":[{"participant":"x","text":"..."}],"objectives":"RQ1 ..."}'
 ```
 
-Chạy local:
+Run locally:
 
 ```bash
 cd src
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # điền LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
+cp .env.example .env            # fill in LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
 python -m app.server            # http://localhost:8080
 ```
 
 ---
 
-## Giới hạn (nói thẳng)
+## Limitations (straight talk)
 
-- **Single-file** mỗi lần phân tích (Route A). Multi-file ladder (Route B) đã được gỡ khỏi agent này.
-- **Objectives là bắt buộc** cho bước Analyze — không mục tiêu thì gate sẽ chặn (cố ý: report không có
-  mục tiêu là report vô dụng).
-- Rule engine làm sạch được tinh chỉnh cho **transcript tiếng Việt** (có code-switch + giọng miền Nam).
+- **Single-file** per analysis (Route A). The multi-file ladder (Route B) has been removed from this agent.
+- **Objectives are required** for Analyze — no goals, the gate blocks you (by design: a report with no
+  objective is a useless report).
+- The cleaning rule engine is tuned for **Vietnamese transcripts** (with code-switching + southern accent).
 
 ---
 
-## Tài liệu liên quan
+## Related docs
 
-| File | Nội dung |
+| File | Content |
 |---|---|
-| `docs/01-agent-README.md` | Kiến trúc, pipeline phân tích, run/deploy chi tiết |
-| `docs/02-clean-pipeline-9-rules.md` | **Spec đầy đủ 9 stage của rule engine làm sạch** |
-| `docs/prompts/{cs,ux,meeting}.md` | Brain prompt từng loại report |
-| `HANDOVER.md` · `DEPLOY.md` | Bàn giao + bảo mật · build/push image + tạo runtime |
+| `docs/01-agent-README.md` | Architecture, analysis pipeline, detailed run/deploy |
+| `docs/02-clean-pipeline-9-rules.md` | **Full 9-stage spec of the cleaning rule engine** |
+| `docs/prompts/{cs,ux,meeting}.md` | Brain prompt for each report type |
+| `HANDOVER.md` · `DEPLOY.md` | Handover + security · build/push image + create runtime |
