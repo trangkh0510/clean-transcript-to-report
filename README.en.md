@@ -1,80 +1,80 @@
-# clean-transcript-to-report — Use Case
+# clean-transcript-to-report
 
 🌐 [Tiếng Việt](README.md) · **English**
 
-A single web app (one container) that turns **raw meeting / interview transcripts** into
-**structured HTML reports**. Two steps in one pipeline, sharing a single LLM endpoint:
+### From raw transcript → a report you can actually use. Not "paste it into ChatGPT and pray."
 
-1. **Clean** — clean up a raw transcript (`.vtt` from Teams / `.docx` / `.txt`).
-2. **Analyze** — turn the cleaned transcript into a report of type `cs` / `ux` / `meeting`.
+You just wrapped a user interview, a meeting, or a support call. What you have is a recording full of
+timestamps, repeated speaker names, "um"s and "uh"s, speech-recognition errors, half-finished
+sentences. The usual move: dump the whole blob into a chatbot and get back a generic summary — vague,
+embellished with invented details, and **impossible to trace back to anything the person actually said.**
 
-> This document focuses on **what it's for** and **how to use it**.
-> For architecture, the technical pipeline, and deployment, see `docs/01-agent-README.md` and `DEPLOY.md`.
+**This tool does it differently.** Two steps, one pipeline, one container:
 
----
-
-## 1. The problem
-
-After a meeting, a user interview (UX research), or a customer support session, you usually end up
-with a raw transcript — full of timestamps, repeated speaker names, filler words ("um", "uh"),
-half-finished sentences, and recording-tool noise. Reading it by hand to extract insights is slow
-and inconsistent.
-
-This agent automates the two most tedious parts:
-
-- **Cleaning** the transcript into something readable while preserving the speaker's intent
-  (favoring *Precision > Recall*).
-- **Analyzing** the cleaned transcript into a structured report, tightly anchored to the
-  **research objectives** the user defines.
+> **1. Clean** — a disciplined *rule engine* scrubs the transcript in the background.
+> **2. Analyze** — turns the clean transcript into a structured HTML report where **every conclusion is backed by a quote.**
 
 ---
 
-## 2. Who uses it & when
+## Why it's worth it (3 differentiators)
 
-| Role | Situation | Report type |
-|---|---|---|
-| **UX researcher** | After a user interview, needs pain points / insights tied to research questions | `ux` |
-| **CS / operations** | After a support session, needs a summary of issues + resolution direction | `cs` |
-| **PM / lead / note-taker** | After a meeting, needs minutes: decisions, action items, owners | `meeting` |
+### 🧹 1. A 9-stage rule engine cleans the transcript — not "hey AI, fix this for me"
 
-Common thread: you have a recording/transcript and need a clean, structured report — **fast**.
+The Clean step doesn't just hand the raw transcript to an LLM and hope. It runs through a **9-stage
+pipeline purpose-built for Vietnamese transcripts** (with English code-switching and southern-accent
+speech), governed by one backbone principle — **Precision > Recall: better to miss an error than to
+"correct" a word that was already right:**
 
----
-
-## 3. Usage flow (2-step wizard)
-
-Open the endpoint → a single-page wizard with two steps:
-
-**Step 1 — Clean**
-1. Upload `.vtt` / `.docx` / `.txt` (parsed right in the browser).
-2. Toggle the 9 cleaning rules on/off (+ add a custom rule if needed).
-3. Click clean → the LLM processes it via a server-side proxy (`POST /api/chat`).
-4. **Review / hand-edit** the cleaned transcript before moving to step 2.
-
-**Step 2 — Analyze**
-1. Choose the report type: `cs` / `ux` / `meeting`.
-2. Enter the **objectives** (goals / research questions) — required.
-3. Click analyze → receive an **HTML report** rendered from validated JSON.
-
-> Each analysis takes **exactly 1 cleaned transcript**. There is a minimum length requirement
-> (ux ≥ 500 words · cs ≥ 300 words · meeting ≥ 500 words), checked **before** any LLM call to avoid wasting quota.
-
----
-
-## 4. Input / output
-
-| | Content |
+| Stage | What the engine does |
 |---|---|
-| **Input** | 1 transcript file (`.vtt` / `.docx` / `.txt`) + report type + objectives |
-| **Intermediate** | Cleaned transcript (user can review/edit) |
-| **Output** | Structured HTML report by type (`cs` / `ux` / `meeting`) |
+| **Token Locking** | Hard-locks phone numbers, OTPs, transaction IDs, money amounts, calendar years — so they can **never be mangled** by a later rule |
+| **ASR & Brand** | Fixes heavy recognition errors, normalizes brands ("Tóp Tóp" → TikTok), repairs code-switching ("vau chờ" → voucher) |
+| **Southern accent** | Detects the accent region → enables a dedicated ruleset ("dzậy" → vậy), while **keeping valid dialect words** (tui, ổng, mắc) because those are valuable demographic signal for UX |
+| **Numbers & money** | Distinguishes "year 2023" from "5 million", normalizes "1 5 triệu" → "one and a half million", decodes slang ("một củ" = 1,000,000đ) |
+| **Filler & self-correction** | Strips "um, uh, like, you know", collapses stutters ("I I I" → "I"), keeps polite particles |
+| **Sentences, names, QA** | Adds punctuation only when confident, capitalizes names via a whitelist, and **flags uncertain spots for human review** instead of guessing |
+
+You **toggle each rule on/off** and add your own. Whatever the engine isn't sure about, it **flags
+rather than fabricates** — and you review and hand-edit before anything reaches analysis.
+
+### 🧠 2. Transcript → report logic: structured, evidence-backed, drift-free
+
+The Analyze step does **not** return a paragraph of prose. It runs a controlled pipeline:
+
+```
+gate (gatekeeper) → analyze (LLM returns JSON) → validate (schema) → render (HTML)
+```
+
+- **The gate blocks before you spend a cent:** it requires **objectives** (your goals / research
+  questions), exactly 1 file, and a minimum length — checked **before any LLM call** so you never burn
+  quota on garbage.
+- **Every finding carries evidence:** each insight / pain point ships with a **verbatim ≤15-word quote**
+  pulled straight from the transcript. No "the AI said so" — you can trace it back to the exact sentence.
+- **Schema enforces discipline:** the LLM must return JSON matching a strict schema (validated with
+  Pydantic); a mismatch triggers a retry. The HTML report is **rendered deterministically in Python**
+  from clean JSON — the model never gets to "paint" the layout however it feels.
+
+### 🎯 3. Tailored per use case — not one template for everything
+
+Not every report is the same. Each type has its own **brain prompt + schema + rendering**, asking the
+exact questions that role needs answered:
+
+| Type | For | What you get back |
+|---|---|---|
+| **`ux`** | UX researcher | Findings + **severity-tagged pain points (high/med/low)** mapped to flows, quotes, pass/fail verdict, scorecard, suggestions |
+| **`cs`** | CS / operations | Summary + **customer sentiment trajectory per phase**, issues ranked by severity, action items, verdict |
+| **`meeting`** | PM / lead / note-taker | **Decisions (who made them)** + action items (task · owner · deadline) + off-topic list + verdict |
 
 ---
 
-## 5. Two ways to call it
+## Up and running in 3 minutes
 
-- **UI (recommended):** open `https://<ENDPOINT>/` → use the Step 1 → Step 2 wizard.
-- **Direct API (skip Clean):** if you already have a clean transcript, call directly:
+Open the endpoint → a single-page, two-step wizard:
+
+1. **Clean** — upload `.vtt` (Teams) / `.docx` / `.txt` → toggle rules → clean → **review & hand-edit**.
+2. **Analyze** — pick `cs` / `ux` / `meeting` → enter **objectives** → get an **HTML report**.
+
+Already have a clean transcript? Call the API directly and skip step 1:
 
 ```bash
 curl -s -X POST https://<ENDPOINT>/invocations \
@@ -82,33 +82,32 @@ curl -s -X POST https://<ENDPOINT>/invocations \
   -d '{"type":"meeting","mode":"single","transcripts":[{"participant":"x","text":"..."}],"objectives":"RQ1 ..."}'
 ```
 
----
-
-## 6. Limitations (current scope)
-
-- **Single-file** only (Route A). The entire Route B (multi-file ladder) has been removed from this agent.
-- **Objectives are required** for the Analyze step — without them, the gate blocks the request.
-
----
-
-## 7. Quick local run
+Run locally:
 
 ```bash
 cd src
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # fill in real LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
+cp .env.example .env            # fill in LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
 python -m app.server            # http://localhost:8080
 ```
 
 ---
 
-## 8. Related docs
+## Limitations (straight talk)
+
+- **Single-file** per analysis (Route A). The multi-file ladder (Route B) has been removed from this agent.
+- **Objectives are required** for Analyze — no goals, the gate blocks you (by design: a report with no
+  objective is a useless report).
+- The cleaning rule engine is tuned for **Vietnamese transcripts** (with code-switching + southern accent).
+
+---
+
+## Related docs
 
 | File | Content |
 |---|---|
 | `docs/01-agent-README.md` | Architecture, analysis pipeline, detailed run/deploy |
-| `docs/02-clean-pipeline-9-rules.md` | Spec for the 9 cleaning rules (behind Step 1) |
+| `docs/02-clean-pipeline-9-rules.md` | **Full 9-stage spec of the cleaning rule engine** |
 | `docs/prompts/{cs,ux,meeting}.md` | Brain prompt for each report type |
-| `HANDOVER.md` | Handover + security |
-| `DEPLOY.md` | Build/push image + create GreenNode AgentBase runtime |
+| `HANDOVER.md` · `DEPLOY.md` | Handover + security · build/push image + create runtime |
