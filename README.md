@@ -76,7 +76,7 @@ Open the endpoint → a single-page, two-step wizard:
 
 ## Limitations (straight talk)
 
-- **Single-file** per analysis (Route A). The multi-file ladder (Route B) has been removed from this agent.
+- **One file per analysis** for now. Got multiple transcripts? Combine them into a single file first.
 - **Objectives are required** for Analyze — no goals, the gate blocks you (by design: a report with no
   objective is a useless report).
 - The cleaning rule engine is tuned for **Vietnamese transcripts** (with code-switching + southern accent).
